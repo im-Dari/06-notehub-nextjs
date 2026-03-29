@@ -1,0 +1,86 @@
+'use client';
+
+import { Formik, Form, Field, ErrorMessage } from 'formik';
+import * as Yup from 'yup';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { createNote } from '@/lib/api';
+import type { NoteTag } from '../../types/note';
+
+import css from './NoteForm.module.css';
+
+interface NoteFormProps {
+  onClose: () => void;
+}
+
+interface FormValues {
+  title: string;
+  content: string;
+  tag: NoteTag;
+}
+
+const validationSchema = Yup.object({
+  title: Yup.string().min(3).max(50).required(),
+  content: Yup.string().max(500),
+  tag: Yup.mixed<NoteTag>().required(),
+});
+
+export default function NoteForm({ onClose }: NoteFormProps) {
+  const queryClient = useQueryClient();
+
+ const mutation = useMutation({
+  mutationFn: (values: FormValues) => createNote(values),
+  onSuccess: () => {
+    queryClient.invalidateQueries({ queryKey: ['notes'] });
+    onClose();
+  },
+});
+
+  return (
+    <Formik<FormValues>
+      initialValues={{ title: '', content: '', tag: 'Todo' }}
+      validationSchema={validationSchema}
+      onSubmit={(values) => mutation.mutate(values)}
+    >
+      <Form className={css.form}>
+        <div className={css.formGroup}>
+          <label htmlFor="title">Title</label>
+          <Field name="title" className={css.input} />
+          <ErrorMessage name="title">
+            {(msg) => <span className={css.error}>{msg}</span>}
+          </ErrorMessage>
+        </div>
+
+        <div className={css.formGroup}>
+          <label htmlFor="content">Content</label>
+          <Field as="textarea" name="content" className={css.textarea} />
+          <ErrorMessage name="content">
+            {(msg) => <span className={css.error}>{msg}</span>}
+          </ErrorMessage>
+        </div>
+
+        <div className={css.formGroup}>
+          <label htmlFor="tag">Tag</label>
+          <Field as="select" name="tag" className={css.select}>
+            <option value="Todo">Todo</option>
+            <option value="Work">Work</option>
+            <option value="Personal">Personal</option>
+            <option value="Meeting">Meeting</option>
+            <option value="Shopping">Shopping</option>
+          </Field>
+          <ErrorMessage name="tag">
+            {(msg) => <span className={css.error}>{msg}</span>}
+          </ErrorMessage>
+        </div>
+
+        <div className={css.actions}>
+          <button type="button" onClick={onClose} className={css.cancelButton}>
+            Cancel
+          </button>
+          <button type="submit" className={css.submitButton} disabled={mutation.isPending}>
+            Create
+          </button>
+        </div>
+      </Form>
+    </Formik>
+  );
+}
